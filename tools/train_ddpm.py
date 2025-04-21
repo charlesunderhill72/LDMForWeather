@@ -3,12 +3,16 @@ import yaml
 import argparse
 import os
 import numpy as np
+import json
 from tqdm import tqdm
 from torch.optim import Adam
 from dataset.mnist_dataset import MnistDataset
 from torch.utils.data import DataLoader
 from models.unet_base import Unet
+from models.autoencoder_base import ConvAutoencoder
+from tools.train_autoencoder import train_autoencoder
 from scheduler.linear_noise_scheduler import LinearNoiseScheduler
+from utils.external_utilities import compute_global_min_max, next_power_of_2, pad_to_power_of_2
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -27,29 +31,72 @@ def train(args):
     dataset_config = config['dataset_params']
     model_config = config['model_params']
     train_config = config['train_params']
+    autoencoder_config = config['autoencoder_params']
     
     # Create the noise scheduler
     scheduler = LinearNoiseScheduler(num_timesteps=diffusion_config['num_timesteps'],
                                      beta_start=diffusion_config['beta_start'],
                                      beta_end=diffusion_config['beta_end'])
     
+    # Compute global min-max values for uniform normalization over dataset
+    if os.path.exists(os.path.join(train_config['task_name'], train_config['min_max_name'])):
+        with open(os.path.join(train_config['task_name'], train_config['min_max_name']), "r") as f:
+            min_max_dict = json.load(f)
+        
+        global_min = min_max_dict["global_min"]
+        global_max = min_max_dict["global_max"]
+    
+    else:
+        # Load image paths using temp Dataset instance
+        temp_dataset = MnistDataset(split="train", im_path=dataset_config['im_path'], global_min=0, global_max=1)
+        image_paths = temp_dataset.images
+        
+        # Compute global min and max
+        global_min, global_max = compute_global_min_max(image_paths)
+        print(f"Global min: {global_min}, max: {global_max}")
+        
+        min_max_dict = {
+            "global_min": float(global_min),
+            "global_max": float(global_max)
+        }
+        
+        with open(os.path.join(train_config['task_name'], train_config['min_max_name']), "w") as f:
+            json.dump(min_max_dict, f)
+    
     # Create the dataset
-    mnist = MnistDataset('train', im_path=dataset_config['im_path'])
+    mnist = MnistDataset('train', im_path=dataset_config['im_path'], global_min=global_min, global_max=global_max)
     mnist_loader = DataLoader(mnist, batch_size=train_config['batch_size'], shuffle=True, num_workers=4)
     
-    # Instantiate the model
+    # Instantiate the models
     model = Unet(model_config).to(device)
     model.train()
+    
+    autoencoder = ConvAutoencoder().to(device)
+    autoencoder.train()
     
     # Create output directories
     if not os.path.exists(train_config['task_name']):
         os.mkdir(train_config['task_name'])
-    
-    # Load checkpoint if found
+        
+    # Load autoencoder checkpoint if found
+    if os.path.exists(os.path.join(autoencoder_config['task_name'],autoencoder_config['ckpt_name'])):
+        print('Loading autoencoder checkpoint as found one')
+        autoencoder.load_state_dict(torch.load(os.path.join(autoencoder_config['task_name'],
+                                                      autoencoder_config['ckpt_name']), map_location=device))
+        
+    else:
+        print('Training autoencoder')
+        train_autoencoder(args)
+        autoencoder.load_state_dict(torch.load(os.path.join(autoencoder_config['task_name'],
+                                                      autoencoder_config['ckpt_name']), map_location=device))
+        
+    # Load ddpm checkpoint if found
     if os.path.exists(os.path.join(train_config['task_name'],train_config['ckpt_name'])):
-        print('Loading checkpoint as found one')
+        print('Loading ddpm checkpoint as found one')
         model.load_state_dict(torch.load(os.path.join(train_config['task_name'],
                                                       train_config['ckpt_name']), map_location=device))
+    
+    autoencoder.eval()
     # Specify training parameters
     num_epochs = train_config['num_epochs']
     optimizer = Adam(model.parameters(), lr=train_config['lr'])
@@ -61,6 +108,8 @@ def train(args):
         for im in tqdm(mnist_loader):
             optimizer.zero_grad()
             im = im.float().to(device)
+            im = pad_to_power_of_2(im)
+            _, im, _ = autoencoder(im)
             
             # Sample random noise
             noise = torch.randn_like(im).to(device)
