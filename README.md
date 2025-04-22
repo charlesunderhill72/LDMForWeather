@@ -3,7 +3,7 @@ Latent Diffusion Model Implementation in PyTorch for Generative Prediction
 
 This repository modifies explainingai's [DDPM](https://arxiv.org/abs/2006.11239) to function as a Latent Diffusion Model [LDM](https://arxiv.org/pdf/2112.10752) with training and sampling methods of DDPM and unet architecture mimicking the stable diffusion unet used in diffusers library from huggingface from scratch. The LDM modification involves using an autoencoder to downscale larger images so the unet can be trained on larger images without enforcing large memory requirements. The adaptation was made so the model can be trained on geopotential data for the purposes of prediction. 
 
-[## DDPM Explanation Videos
+<!--## DDPM Explanation Videos
 <a href="https://www.youtube.com/watch?v=H45lF4sUgiE">
    <img alt="DDPM Math Video" src="https://github.com/explainingai-code/DDPM-Pytorch/assets/144267687/27627399-ca3e-4491-a3f3-34d36e05b9cb"
    width="300">
@@ -67,4 +67,4 @@ During sampling the following output will be saved
       archivePrefix={arXiv},
       primaryClass={cs.LG}
 }
-```] <>
+```-->
