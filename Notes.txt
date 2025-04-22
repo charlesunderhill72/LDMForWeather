@@ -1,0 +1,13 @@
+I think I should try preprocessing the data so that the autoencoder is trained 
+on the min max scaled data only [0, 1]. In order to do this, I need to modify 
+the code so that the global min max values are computed for both channels 
+seperately, where I believe I have been using the same values for each so far. 
+
+I think the unet still wants to see data in the [-1, 1] range, so the latent 
+encodings fed into the Unet can then be scaled before being fed into the DDPM. 
+
+I should save latent encodings from the autoencoder over the test set so they 
+are easily accessed from a test module. That way their reconstructions can be 
+easily visualized to see how effective the autoencoder is. I should also save 
+generated latent samples from the DDPM so I can seperately test the quality of 
+reconstructions for those.

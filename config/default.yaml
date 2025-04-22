@@ -34,3 +34,8 @@ train_params:
   lr: 0.0001
   ckpt_name: 'ddpm_ckpt.pth'
   min_max_name: 'global_min_max.json'
+  
+test_params:
+  task_name: 'test'
+  vis_name: 'visuals'
+  im_path: 'data/test/images'
