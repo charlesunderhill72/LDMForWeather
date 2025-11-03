@@ -3,7 +3,7 @@ A collection of external utilities.
 """
 import numpy as np
 import torch.nn.functional as F
-import tqdm
+from tqdm import tqdm
 import torch
 import xarray as xr
 

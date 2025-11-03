@@ -38,6 +38,9 @@ def train(args):
                                      beta_start=diffusion_config['beta_start'],
                                      beta_end=diffusion_config['beta_end'])
     
+    # Ensure the directory exists
+    os.makedirs(train_config['task_name'], exist_ok=True)
+    
     # Compute global min-max values for uniform normalization over dataset
     if os.path.exists(os.path.join(train_config['task_name'], train_config['min_max_name'])):
         with open(os.path.join(train_config['task_name'], train_config['min_max_name']), "r") as f:
